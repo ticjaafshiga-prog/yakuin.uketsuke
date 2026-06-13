@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>競技役員 受付</title>
+<style>
+  :root{
+    --track:#9E3B2F;      /* トラックのレンガ色 */
+    --ink:#1F2A37;        /* 濃紺インク */
+    --paper:#FFFFFF;
+    --field:#F5F2EC;      /* フィールドのオフホワイト */
+    --line:#D8D2C6;
+    --ok:#2F7D4F;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:"Hiragino Sans","Yu Gothic","Noto Sans JP",sans-serif;
+    background:var(--field);
+    color:var(--ink);
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:520px;margin:0 auto;padding:16px 16px 48px}
+
+  /* ヘッダー：レーンライン */
+  header{
+    border-bottom:4px double var(--track);
+    padding:20px 0 12px;
+    margin-bottom:20px;
+  }
+  header .org{font-size:12px;letter-spacing:.2em;color:var(--track);font-weight:700}
+  header h1{font-size:22px;font-weight:800;letter-spacing:.05em}
+
+  .card{
+    background:var(--paper);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:20px;
+    margin-bottom:16px;
+  }
+  .label{font-size:12px;font-weight:700;color:#6B7280;letter-spacing:.1em;margin-bottom:4px}
+  .meet-name{font-size:20px;font-weight:800}
+  .meet-date{font-size:15px;margin-top:2px}
+
+  input[type=text]{
+    width:100%;
+    font-size:18px;
+    padding:14px;
+    border:2px solid var(--line);
+    border-radius:8px;
+    margin-top:6px;
+  }
+  input[type=text]:focus{outline:3px solid var(--track);border-color:var(--track)}
+  .field+.field{margin-top:14px}
+
+  button.primary{
+    width:100%;
+    margin-top:20px;
+    font-size:20px;
+    font-weight:800;
+    letter-spacing:.1em;
+    color:#fff;
+    background:var(--track);
+    border:none;
+    border-radius:10px;
+    padding:18px;
+    cursor:pointer;
+  }
+  button.primary:active{transform:translateY(1px)}
+  button.primary:disabled{background:#B9AFA5;cursor:wait}
+  button:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+
+  .notice{font-size:13px;color:#6B7280;margin-top:10px}
+
+  /* 完了表示 */
+  .done{
+    text-align:center;
+    padding:28px 20px;
+  }
+  .done .mark{
+    width:88px;height:88px;
+    margin:0 auto 12px;
+    border:4px solid var(--ok);
+    border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-size:44px;color:var(--ok);font-weight:800;
+  }
+  .done h2{font-size:22px;color:var(--ok)}
+  .done p{margin-top:6px;font-size:15px;white-space:pre-line}
+  .error{color:#B0413E;font-weight:700;margin-top:12px;font-size:15px}
+
+  /* 出動記録帳：短冊シール風 */
+  section.book h2{
+    font-size:15px;letter-spacing:.15em;font-weight:800;
+    color:var(--track);
+    margin:28px 0 10px;
+    border-left:6px solid var(--track);
+    padding-left:10px;
+  }
+  ul.stamps{list-style:none}
+  ul.stamps li{
+    background:var(--paper);
+    border:1px solid var(--ink);
+    border-left:10px solid var(--track);
+    border-radius:3px;
+    padding:10px 14px;
+    margin-bottom:8px;
+    display:flex;justify-content:space-between;align-items:baseline;gap:10px;
+    box-shadow:1px 2px 0 rgba(31,42,55,.15);
+  }
+  ul.stamps li .nm{font-weight:700;font-size:15px}
+  ul.stamps li .dt{font-size:13px;white-space:nowrap;color:#6B7280}
+  .empty{font-size:14px;color:#6B7280;padding:8px 2px}
+  .count{font-weight:400;font-size:13px;color:#6B7280;margin-left:8px}
+
+  button.restore{
+    width:100%;
+    margin-top:14px;
+    font-size:15px;
+    font-weight:700;
+    color:var(--track);
+    background:var(--paper);
+    border:2px solid var(--track);
+    border-radius:10px;
+    padding:12px;
+    cursor:pointer;
+  }
+  button.restore:disabled{color:#B9AFA5;border-color:#B9AFA5;cursor:wait}
+
+  @media (prefers-reduced-motion: no-preference){
+    .done .mark{animation:pop .35s ease-out}
+    @keyframes pop{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="org">陸上競技 役員受付</div>
+    <h1 id="pageTitle">役員出動受付</h1>
+  </header>
+
+  <!-- 大会情報 -->
+  <div class="card" id="meetCard" hidden>
+    <div class="label">大会</div>
+    <div class="meet-name" id="meetName"></div>
+    <div class="meet-date" id="meetDate"></div>
+  </div>
+
+  <!-- 受付フォーム -->
+  <div class="card" id="formCard" hidden>
+    <div class="field">
+      <label class="label" for="name">氏名（フルネーム）</label>
+      <input type="text" id="name" autocomplete="name" placeholder="例：林 克則">
+    </div>
+    <div class="field">
+      <label class="label" for="affil">所属（任意）</label>
+      <input type="text" id="affil" placeholder="例：○○高校">
+    </div>
+    <div class="field">
+      <label class="label" for="pin">PIN（数字4桁）</label>
+      <input type="password" id="pin" inputmode="numeric" maxlength="4" pattern="\d{4}" placeholder="••••" autocomplete="off">
+      <p class="notice" style="margin-top:6px">初めての方は、ここで入力した4桁がそのままあなたのPINとして登録されます。次回以降も同じ番号を使ってください。</p>
+    </div>
+    <button class="primary" id="checkinBtn">受付する</button>
+    <p class="notice">氏名はこの端末に保存され、次回から入力不要になります。</p>
+    <p class="error" id="errMsg" hidden></p>
+  </div>
+
+  <!-- 完了 -->
+  <div class="card done" id="doneCard" hidden>
+    <div class="mark">✓</div>
+    <h2>受付完了</h2>
+    <p id="doneText"></p>
+  </div>
+
+  <!-- QRなしで開いた場合 -->
+  <div class="card" id="noEventCard" hidden>
+    <p>大会のQRコードを読み取ってこのページを開いてください。<br>
+    下にこれまでの出動記録を表示しています。</p>
+  </div>
+
+  <!-- 出動記録帳 -->
+  <section class="book">
+    <h2>出動記録帳<span class="count" id="stampCount"></span></h2>
+    <ul class="stamps" id="stampList"></ul>
+    <p class="empty" id="stampEmpty" hidden>まだ記録はありません。</p>
+    <button class="restore" id="restoreBtn">機種変更した方へ：記録を復元する</button>
+    <p class="notice" id="restoreMsg" hidden></p>
+  </section>
+</div>
+
+<script>
+/* ===== 設定（READMEの手順でGASのURLを貼り付けてください） ===== */
+const GAS_URL = "https://script.google.com/macros/s/AKfycbw3baASw8ZdvHjTGMRdus8eAkT5z9fLs3HAqRcbnbruEL2tKYNPVnJdP9Gj0BDi2Zcu6g/exec";
+/* ============================================================ */
+
+const params = new URLSearchParams(location.search);
+const eventId   = params.get("e") || "";
+const eventName = params.get("n") || "";
+const eventDate = params.get("d") || "";
+const key       = params.get("k") || "";
+
+const $ = id => document.getElementById(id);
+
+// 大会情報の表示
+if (eventId && eventName) {
+  $("meetCard").hidden = false;
+  $("meetName").textContent = eventName;
+  $("meetDate").textContent = eventDate ? formatDate(eventDate) : "";
+  if (alreadyCheckedIn(eventId)) {
+    showDone("この大会はすでに受付済みです。");
+  } else {
+    $("formCard").hidden = false;
+  }
+} else {
+  $("noEventCard").hidden = false;
+}
+
+// 保存済みの氏名・所属を復元
+$("name").value  = localStorage.getItem("yakuin_name")  || "";
+$("affil").value = localStorage.getItem("yakuin_affil") || "";
+
+$("checkinBtn").addEventListener("click", async () => {
+  const name  = $("name").value.trim();
+  const affil = $("affil").value.trim();
+  const pin   = $("pin").value.trim();
+  const err = $("errMsg");
+  err.hidden = true;
+
+  if (!name) {
+    err.textContent = "氏名を入力してください。";
+    err.hidden = false;
+    return;
+  }
+  if (!/^\d{4}$/.test(pin)) {
+    err.textContent = "PINは数字4桁で入力してください。";
+    err.hidden = false;
+    return;
+  }
+  const btn = $("checkinBtn");
+  btn.disabled = true;
+  btn.textContent = "送信中…";
+
+  try {
+    const res = await fetch(GAS_URL, {
+      method: "POST",
+      headers: {"Content-Type": "text/plain;charset=utf-8"},
+      body: JSON.stringify({eventId, eventName, eventDate, name, affil, pin, key})
+    });
+    const data = await res.json();
+
+    if (data.status === "ok" || data.status === "dup") {
+      localStorage.setItem("yakuin_name", name);
+      localStorage.setItem("yakuin_affil", affil);
+      if (key) localStorage.setItem("yakuin_key", key);
+      saveStamp({eventId, eventName, eventDate, time: new Date().toISOString()});
+      let msg = data.status === "dup"
+        ? "すでに受付済みでした（記録は1件のみ残ります）。"
+        : name + " さんの出動を記録しました。";
+      if (data.pinRegistered) msg += "\nPINを登録しました。次回も同じ4桁を使ってください。";
+      showDone(msg);
+    } else {
+      throw new Error(data.message || "受付できませんでした。");
+    }
+  } catch (e) {
+    err.textContent = "送信に失敗しました。電波状況を確認して、もう一度押してください。（" + e.message + "）";
+    err.hidden = false;
+    btn.disabled = false;
+    btn.textContent = "受付する";
+  }
+});
+
+function showDone(msg){
+  $("formCard").hidden = true;
+  $("doneCard").hidden = false;
+  $("doneText").textContent = msg;
+  renderStamps();
+}
+
+/* ===== 出動記録帳（この端末に保存） ===== */
+function getStamps(){
+  try { return JSON.parse(localStorage.getItem("yakuin_stamps") || "[]"); }
+  catch { return []; }
+}
+function alreadyCheckedIn(id){
+  return getStamps().some(s => s.eventId === id);
+}
+function saveStamp(s){
+  const stamps = getStamps();
+  if (!stamps.some(x => x.eventId === s.eventId)) {
+    stamps.unshift(s);
+    localStorage.setItem("yakuin_stamps", JSON.stringify(stamps));
+  }
+}
+function renderStamps(){
+  const stamps = getStamps().slice().sort((a, b) =>
+    String(b.eventDate || b.time).localeCompare(String(a.eventDate || a.time))
+  );
+  const list = $("stampList");
+  list.innerHTML = "";
+  $("stampEmpty").hidden = stamps.length > 0;
+  $("stampCount").textContent = stamps.length ? "（" + stamps.length + "件）" : "";
+  for (const s of stamps) {
+    const li = document.createElement("li");
+    const nm = document.createElement("span");
+    nm.className = "nm";
+    nm.textContent = s.eventName;
+    const dt = document.createElement("span");
+    dt.className = "dt";
+    dt.textContent = s.eventDate ? formatDate(s.eventDate) : new Date(s.time).toLocaleDateString("ja-JP");
+    li.append(nm, dt);
+    list.appendChild(li);
+  }
+}
+function formatDate(d){
+  // "2026-06-20" → "2026年6月20日"
+  const m = d.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  return m ? `${m[1]}年${Number(m[2])}月${Number(m[3])}日` : d;
+}
+renderStamps();
+
+/* ===== 履歴の復元（スプレッドシートから取得） ===== */
+$("restoreBtn").addEventListener("click", async () => {
+  const msg = $("restoreMsg");
+  msg.hidden = true;
+
+  // 大会QRから開いた場合はURLの合言葉、それ以外は保存済みの合言葉を使う
+  const restoreKey = key || localStorage.getItem("yakuin_key") || "";
+  if (!restoreKey) {
+    msg.textContent = "復元するには、いずれかの大会のQRコードを読み取ってこのページを開いてください。";
+    msg.hidden = false;
+    return;
+  }
+
+  let name = localStorage.getItem("yakuin_name") || "";
+  name = prompt("登録時の氏名をフルネームで入力してください（例：林 克則）", name);
+  if (!name) return;
+  name = name.trim();
+
+  const pin = prompt("PIN（数字4桁）を入力してください");
+  if (!pin || !/^\d{4}$/.test(pin.trim())) {
+    msg.textContent = "PINは数字4桁で入力してください。";
+    msg.hidden = false;
+    return;
+  }
+
+  const btn = $("restoreBtn");
+  btn.disabled = true;
+  btn.textContent = "復元中…";
+
+  try {
+    const res = await fetch(GAS_URL
+      + "?name=" + encodeURIComponent(name)
+      + "&pin=" + encodeURIComponent(pin.trim())
+      + "&key=" + encodeURIComponent(restoreKey));
+    const data = await res.json();
+    if (data.status !== "ok") throw new Error(data.message || "取得できませんでした");
+
+    let added = 0;
+    for (const r of data.records) {
+      const before = getStamps().length;
+      saveStamp(r);
+      if (getStamps().length > before) added++;
+    }
+    localStorage.setItem("yakuin_name", name);
+    localStorage.setItem("yakuin_key", restoreKey);
+    renderStamps();
+    msg.textContent = data.records.length === 0
+      ? "「" + name + "」の記録が見つかりませんでした。氏名の表記（スペース等）をご確認ください。"
+      : "復元しました（" + data.records.length + "件中、新たに " + added + " 件を追加）。";
+    msg.hidden = false;
+  } catch (e) {
+    msg.textContent = "復元に失敗しました。電波状況を確認して、もう一度お試しください。（" + e.message + "）";
+    msg.hidden = false;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "機種変更した方へ：記録を復元する";
+  }
+});
+</script>
+</body>
+</html>
